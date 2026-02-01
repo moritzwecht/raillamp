@@ -8,7 +8,7 @@ int MAX_BRIGHTNESS = 30;
 #define FADE_SPEED 5
 
 CRGB leds[NUM_LEDS];
-CRGB targetColor = CRGB(255, 140, 60);
+CRGB targetColor = CRGB(255, 255, 255);
 
 bool lightsOn = false;
 bool shouldFadeIn = false;
@@ -47,13 +47,6 @@ void setMaxBrightness(int brightness) {
   }
 }
 
-void setColor(int r, int g, int b) {
-  targetColor = CRGB(r, g, b);
-  if (lightsOn) {
-    fill_solid(leds, NUM_LEDS, targetColor);
-    FastLED.show();
-  }
-}
 
 void updateFade() {
   if (shouldFadeIn) {

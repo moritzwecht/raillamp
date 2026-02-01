@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nachtlicht</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🌙 Nachtlicht</h1>
+
+        <!-- Lampen Status -->
+        <div class="card">
+            <h2>Status</h2>
+            <div class="lamp-status">
+                <div class="lamp-icon" id="lampIcon">💡</div>
+                <div class="status-text off" id="statusText">AUS</div>
+            </div>
+            <div class="current-time" id="currentTime">--:--</div>
+        </div>
+
+        <!-- Statusmeldung -->
+        <div class="card">
+            <h2>Meldung</h2>
+            <div class="status-msg" id="statusMsg">Bereit</div>
+            <div class="error-msg" id="errorMsg"></div>
+        </div>
+
+        <!-- Parameter -->
+        <div class="card">
+            <h2>Parameter</h2>
+            <div class="param-row">
+                <span class="param-label">Helligkeit</span>
+                <span class="param-value" id="brightnessValue">0%</span>
+            </div>
+            <div class="param-row">
+                <span class="param-label">Max. Helligkeit</span>
+                <span class="param-value" id="maxBrightnessValue">30</span>
+            </div>
+            <div class="param-row">
+                <span class="param-label">Timeout</span>
+                <span class="param-value" id="timeoutValue">10s</span>
+            </div>
+            <div class="param-row">
+                <span class="param-label">PIR Sensor 1</span>
+                <span class="param-value" id="pir1Value">—</span>
+            </div>
+            <div class="param-row">
+                <span class="param-label">PIR Sensor 2</span>
+                <span class="param-value" id="pir2Value">—</span>
+            </div>
+        </div>
+
+        <!-- Zeitsteuerung -->
+        <div class="card">
+            <h2>Zeitsteuerung</h2>
+            <div class="schedule-status" id="scheduleStatus">
+                <span class="schedule-indicator active" id="scheduleIndicator"></span>
+                <span id="scheduleStatusText">Aktiv</span>
+            </div>
+
+            <div class="time-inputs">
+                <div class="time-group">
+                    <label>Von</label>
+                    <input type="time" id="scheduleStart" value="22:00">
+                </div>
+                <div class="time-group">
+                    <label>Bis</label>
+                    <input type="time" id="scheduleEnd" value="06:00">
+                </div>
+            </div>
+
+            <button class="btn btn-primary" id="saveScheduleBtn">Zeitplan speichern</button>
+
+            <div class="schedule-toggle">
+                <label class="toggle-label">
+                    <input type="checkbox" id="scheduleEnabled" checked>
+                    <span class="toggle-slider"></span>
+                    <span class="toggle-text">Zeitplan aktiviert</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Scharf schalten -->
+        <div class="card">
+            <h2>Scharf schalten</h2>
+            <div class="armed-status" id="armedStatus">
+                <span class="armed-indicator" id="armedIndicator"></span>
+                <span id="armedStatusText">Nicht aktiv</span>
+            </div>
+
+            <div class="arm-buttons">
+                <button class="btn btn-arm" onclick="armFor(1)">1 Stunde</button>
+                <button class="btn btn-arm" onclick="armFor(2)">2 Stunden</button>
+                <button class="btn btn-arm" onclick="armFor(3)">3 Stunden</button>
+                <button class="btn btn-arm btn-day" onclick="armForDay()">Rest des Tages</button>
+            </div>
+
+            <button class="btn btn-disarm" id="disarmBtn" onclick="disarm()">Deaktivieren</button>
+        </div>
+
+        <!-- Steuerung -->
+        <div class="card">
+            <h2>Steuerung</h2>
+
+            <div class="slider-row">
+                <label>
+                    <span>Max. Helligkeit</span>
+                    <span id="brightnessSliderVal">30</span>
+                </label>
+                <input type="range" id="brightnessSlider" min="10" max="255" value="30">
+            </div>
+
+            <div class="slider-row">
+                <label>
+                    <span>Timeout (Sekunden)</span>
+                    <span id="timeoutSliderVal">10</span>
+                </label>
+                <input type="range" id="timeoutSlider" min="3" max="60" value="10">
+            </div>
+        </div>
+
+        <div class="refresh-info">Auto-Refresh alle 2 Sekunden</div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
