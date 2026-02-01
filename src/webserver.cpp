@@ -1,4 +1,4 @@
-#include "webserver.h"
+#include "mywebserver.h"
 #include "leds.h"
 #include <Arduino.h>
 #include <WiFi.h>
@@ -15,6 +15,10 @@ extern int currentBrightness;
 extern int MAX_BRIGHTNESS;
 extern CRGB targetColor;
 
+// Extern aus main.cpp
+extern unsigned long TIMEOUT;
+void setTimeoutValue(unsigned long val);
+
 void updateStatus(const String& status) {
   currentStatus = status;
 }
@@ -25,7 +29,7 @@ void updateError(const String& error) {
 
 // HTML + CSS + JS als String
 String getHTML() {
-  String html = R"(
+  String html = R"rawliteral(
     <!DOCTYPE html>
     <html lang="de">
     <head>
@@ -340,6 +344,16 @@ String getHTML() {
           // Status Meldung
           document.getElementById('statusMsg').textContent = data.status;
           showError(data.error);
+
+          // Slider synchronisieren (nur wenn nicht gerade bedient)
+          if (document.activeElement.id !== 'brightnessSlider') {
+            document.getElementById('brightnessSlider').value = data.maxBrightness;
+            document.getElementById('brightnessSliderVal').textContent = data.maxBrightness;
+          }
+          if (document.activeElement.id !== 'timeoutSlider') {
+            document.getElementById('timeoutSlider').value = data.timeout;
+            document.getElementById('timeoutSliderVal').textContent = data.timeout;
+          }
         }
 
         function showError(msg) {
@@ -373,7 +387,7 @@ String getHTML() {
       </script>
     </body>
     </html>
-  )";
+  )rawliteral";
   return html;
 }
 
@@ -402,57 +416,98 @@ void handleStatus() {
   server.send(200, "application/json", json);
 }
 
-void handleSetBrightness() {
-  if (server.pathArgs().size() > 0) {
-    int val = server.pathArg(0).toInt();
+// Hilfsfunktion: Extrahiert einen Teil der URI nach dem Prefix
+String getUriPart(const String& uri, int partIndex) {
+  int start = 0;
+  int partCount = 0;
+
+  for (int i = 0; i < uri.length(); i++) {
+    if (uri[i] == '/') {
+      if (partCount == partIndex && i > start) {
+        return uri.substring(start, i);
+      }
+      start = i + 1;
+      partCount++;
+    }
+  }
+
+  // Letzter Teil (kein trailing /)
+  if (partCount == partIndex) {
+    return uri.substring(start);
+  }
+
+  return "";
+}
+
+// Handler für alle /set/... Routen
+void handleNotFound() {
+  String uri = server.uri();
+
+  // /set/brightness/<value>
+  if (uri.startsWith("/set/brightness/")) {
+    String valStr = uri.substring(16); // Nach "/set/brightness/"
+    int val = valStr.toInt();
     if (val >= 0 && val <= 255) {
       setMaxBrightness(val);
       updateStatus("Helligkeit auf " + String(val) + " gesetzt");
       server.send(200, "text/plain", "OK");
     } else {
-      server.send(400, "text/plain", "Ungültiger Wert");
+      server.send(400, "text/plain", "Ungültiger Wert (0-255)");
     }
+    return;
   }
-}
 
-void handleSetTimeout() {
-  if (server.pathArgs().size() > 0) {
-    int val = server.pathArg(0).toInt();
+  // /set/timeout/<value>
+  if (uri.startsWith("/set/timeout/")) {
+    String valStr = uri.substring(13); // Nach "/set/timeout/"
+    int val = valStr.toInt();
     if (val >= 1 && val <= 300) {
       setTimeoutValue(val * 1000);
       updateStatus("Timeout auf " + String(val) + "s gesetzt");
       server.send(200, "text/plain", "OK");
     } else {
-      server.send(400, "text/plain", "Ungültiger Wert");
+      server.send(400, "text/plain", "Ungültiger Wert (1-300)");
     }
+    return;
   }
-}
 
-void handleSetColor() {
-  if (server.pathArgs().size() >= 3) {
-    int r = server.pathArg(0).toInt();
-    int g = server.pathArg(1).toInt();
-    int b = server.pathArg(2).toInt();
-    if (r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255) {
-      setColor(r, g, b);
-      updateStatus("Farbe auf RGB(" + String(r) + "," + String(g) + "," + String(b) + ") gesetzt");
-      server.send(200, "text/plain", "OK");
+  // /set/color/<r>/<g>/<b>
+  if (uri.startsWith("/set/color/")) {
+    // URI Format: /set/color/255/140/60
+    String colorPart = uri.substring(11); // Nach "/set/color/"
+    int firstSlash = colorPart.indexOf('/');
+    int secondSlash = colorPart.indexOf('/', firstSlash + 1);
+
+    if (firstSlash > 0 && secondSlash > firstSlash) {
+      int r = colorPart.substring(0, firstSlash).toInt();
+      int g = colorPart.substring(firstSlash + 1, secondSlash).toInt();
+      int b = colorPart.substring(secondSlash + 1).toInt();
+
+      if (r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255) {
+        setColor(r, g, b);
+        updateStatus("Farbe auf RGB(" + String(r) + "," + String(g) + "," + String(b) + ") gesetzt");
+        server.send(200, "text/plain", "OK");
+      } else {
+        server.send(400, "text/plain", "Ungültige RGB-Werte (0-255)");
+      }
     } else {
-      server.send(400, "text/plain", "Ungültige Werte");
+      server.send(400, "text/plain", "Format: /set/color/r/g/b");
     }
+    return;
   }
+
+  // Keine bekannte Route
+  server.send(404, "text/plain", "Nicht gefunden: " + uri);
 }
 
 void setupWebserver() {
   server.on("/", handleRoot);
   server.on("/status", handleStatus);
-  server.on(UrlTokenizer("/set/brightness/<brightness>"), handleSetBrightness);
-  server.on(UrlTokenizer("/set/timeout/<timeout>"), handleSetTimeout);
-  server.on(UrlTokenizer("/set/color/<r>/<g>/<b>"), handleSetColor);
-  
+  server.onNotFound(handleNotFound);  // Fängt alle anderen Routen ab
+
   server.begin();
   Serial.println("Webserver gestartet auf Port 80!");
-  Serial.println("Öffne: http://192.168.0.200");
+  Serial.println("Öffne: http://192.168.0.216");
 }
 
 void handleWebserver() {
