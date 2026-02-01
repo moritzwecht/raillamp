@@ -119,6 +119,33 @@ function showError(msg) {
     }
 }
 
+let toastTimer = null;
+function showToast(message, isError = false) {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className = 'toast visible' + (isError ? ' error' : '');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+        toast.className = 'toast';
+    }, 2000);
+}
+
+async function fetchWithToast(url, okMessage, errorPrefix) {
+    try {
+        const res = await fetch(url);
+        if (!res.ok) {
+            const text = await res.text();
+            showToast((errorPrefix ? errorPrefix + ': ' : '') + text, true);
+            return false;
+        }
+        if (okMessage) showToast(okMessage);
+        return true;
+    } catch (e) {
+        showToast((errorPrefix ? errorPrefix + ': ' : '') + 'Netzwerkfehler', true);
+        return false;
+    }
+}
+
 // Helligkeit Slider
 document.getElementById('brightnessSlider').addEventListener('input', function() {
     document.getElementById('brightnessSliderVal').textContent = this.value;
@@ -139,23 +166,31 @@ document.getElementById('saveScheduleBtn').addEventListener('click', function() 
     const [startH, startM] = startTime.split(':').map(Number);
     const [endH, endM] = endTime.split(':').map(Number);
 
-    fetch('/set/schedule/' + startH + '/' + startM + '/' + endH + '/' + endM);
+    fetchWithToast(
+        '/set/schedule/' + startH + '/' + startM + '/' + endH + '/' + endM,
+        'Zeitplan gespeichert',
+        'Zeitplan'
+    );
 });
 
 // Zeitplan aktivieren/deaktivieren
 document.getElementById('scheduleEnabled').addEventListener('change', function() {
-    fetch('/set/schedule/enabled/' + (this.checked ? '1' : '0'));
+    fetchWithToast(
+        '/set/schedule/enabled/' + (this.checked ? '1' : '0'),
+        this.checked ? 'Zeitplan aktiviert' : 'Zeitplan deaktiviert',
+        'Zeitplan'
+    );
 });
 
 // Scharf schalten Funktionen
-function armFor(hours) {
-    fetch('/arm/' + hours);
+async function armFor(hours) {
+    await fetchWithToast('/arm/' + hours, 'Scharf für ' + hours + 'h', 'Scharf');
 }
 
-function armForDay() {
-    fetch('/arm/day');
+async function armForDay() {
+    await fetchWithToast('/arm/day', 'Scharf bis Tagesende', 'Scharf');
 }
 
-function disarm() {
-    fetch('/disarm');
+async function disarm() {
+    await fetchWithToast('/disarm', 'Scharf-Schaltung deaktiviert', 'Scharf');
 }

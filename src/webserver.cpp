@@ -12,6 +12,12 @@ WebServer server(80);
 String currentStatus = "Bereit";
 String currentError = "";
 
+// Log buffer
+static const int LOG_CAPACITY = 80;
+static String logBuffer[LOG_CAPACITY];
+static int logStart = 0;
+static int logCount = 0;
+
 // Extern aus leds.cpp
 extern int currentBrightness;
 extern int MAX_BRIGHTNESS;
@@ -36,12 +42,60 @@ bool isCurrentlyArmed();
 int getArmedRemainingMinutes();
 bool isWithinSchedule();
 
+static String formatTimeForLog() {
+  time_t now = time(nullptr);
+  if (now < 1609459200) {  // 2021-01-01, guard for unsynced time
+    return String("--:--:--");
+  }
+  struct tm timeinfo;
+  localtime_r(&now, &timeinfo);
+  char timeStr[9];
+  sprintf(timeStr, "%02d:%02d:%02d", timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+  return String(timeStr);
+}
+
+static String escapeJson(const String& input) {
+  String out;
+  out.reserve(input.length() + 8);
+  for (size_t i = 0; i < input.length(); i++) {
+    char c = input[i];
+    if (c == '\"' || c == '\\') {
+      out += '\\';
+      out += c;
+    } else if (c == '\n') {
+      out += "\\n";
+    } else if (c == '\r') {
+      out += "\\r";
+    } else if (c == '\t') {
+      out += "\\t";
+    } else {
+      out += c;
+    }
+  }
+  return out;
+}
+
+void logEvent(const String& message) {
+  String line = formatTimeForLog() + " " + message;
+  int idx;
+  if (logCount < LOG_CAPACITY) {
+    idx = (logStart + logCount) % LOG_CAPACITY;
+    logCount++;
+  } else {
+    idx = logStart;
+    logStart = (logStart + 1) % LOG_CAPACITY;
+  }
+  logBuffer[idx] = line;
+}
+
 void updateStatus(const String& status) {
   currentStatus = status;
+  logEvent(status);
 }
 
 void updateError(const String& error) {
   currentError = error;
+  logEvent("FEHLER: " + error);
 }
 
 // Content-Type basierend auf Dateiendung
@@ -79,9 +133,11 @@ void handleRoot() {
 }
 
 void handleStatus() {
-  struct tm timeinfo;
   String currentTime = "--:--";
-  if (getLocalTime(&timeinfo)) {
+  time_t now = time(nullptr);
+  if (now >= 1609459200) {
+    struct tm timeinfo;
+    localtime_r(&now, &timeinfo);
     char timeStr[6];
     sprintf(timeStr, "%02d:%02d", timeinfo.tm_hour, timeinfo.tm_min);
     currentTime = String(timeStr);
@@ -109,6 +165,27 @@ void handleStatus() {
 
   server.sendHeader("Access-Control-Allow-Origin", "*");
   server.send(200, "application/json", json);
+}
+
+void handleLog() {
+  String json = "{";
+  json += "\"count\":" + String(logCount) + ",";
+  json += "\"entries\":[";
+  for (int i = 0; i < logCount; i++) {
+    int idx = (logStart + i) % LOG_CAPACITY;
+    json += "\"" + escapeJson(logBuffer[idx]) + "\"";
+    if (i < logCount - 1) json += ",";
+  }
+  json += "]}";
+
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.send(200, "application/json", json);
+}
+
+void handleLogClear() {
+  logStart = 0;
+  logCount = 0;
+  server.send(200, "text/plain", "OK");
 }
 
 // Handler für alle Routen
@@ -173,9 +250,11 @@ void handleNotFound() {
         updateStatus(String(buf));
         server.send(200, "text/plain", "OK");
       } else {
+        updateError("Ungültige Zeitwerte");
         server.send(400, "text/plain", "Ungültige Zeitwerte");
       }
     } else {
+      updateError("Formatfehler Zeitplan");
       server.send(400, "text/plain", "Format: /set/schedule/HH/MM/HH/MM");
     }
     return;
@@ -203,6 +282,7 @@ void handleNotFound() {
         armFor(hours);
         updateStatus("Scharf für " + String(hours) + "h");
       } else {
+        updateError("Ungültige Stunden (1-12)");
         server.send(400, "text/plain", "Ungültige Stunden (1-12)");
         return;
       }
@@ -242,6 +322,8 @@ void setupWebserver() {
 
   server.on("/", handleRoot);
   server.on("/status", handleStatus);
+  server.on("/log", handleLog);
+  server.on("/log/clear", handleLogClear);
   server.onNotFound(handleNotFound);
 
   server.begin();

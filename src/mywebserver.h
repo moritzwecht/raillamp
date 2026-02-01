@@ -5,3 +5,4 @@ void setupWebserver();
 void handleWebserver();
 void updateStatus(const String& status);
 void updateError(const String& error);
+void logEvent(const String& message);

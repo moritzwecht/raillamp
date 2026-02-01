@@ -22,8 +22,6 @@ unsigned long armedUntil = 0;  // 0 = nicht aktiv, sonst Unix-Timestamp
 
 // NTP Konfiguration
 const char* ntpServer = "pool.ntp.org";
-const long gmtOffset_sec = 3600;      // UTC+1 (MEZ)
-const int daylightOffset_sec = 3600;  // Sommerzeit +1h
 
 void setTimeoutValue(unsigned long val) {
   TIMEOUT = val;
@@ -82,6 +80,7 @@ bool isCurrentlyArmed() {
     isArmed = false;
     armedUntil = 0;
     Serial.println("Scharf-Schaltung abgelaufen");
+    logEvent("Scharf-Schaltung abgelaufen");
     return false;
   }
   return true;
@@ -110,6 +109,11 @@ bool isWithinSchedule() {
   int startMinutes = scheduleStartHour * 60 + scheduleStartMinute;
   int endMinutes = scheduleEndHour * 60 + scheduleEndMinute;
 
+  // Start == Ende bedeutet immer an
+  if (startMinutes == endMinutes) {
+    return true;
+  }
+
   // Über Mitternacht hinweg (z.B. 22:00 - 06:00)
   if (startMinutes > endMinutes) {
     return (currentMinutes >= startMinutes || currentMinutes < endMinutes);
@@ -127,7 +131,10 @@ bool shouldReactToMotion() {
 }
 
 void setupNTP() {
-  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+  // Berlin Zeitzone (CET/CEST) über TZ-Regel
+  setenv("TZ", "CET-1CEST,M3.5.0/02,M10.5.0/03", 1);
+  tzset();
+  configTime(0, 0, ntpServer);
   Serial.println("NTP-Zeit wird synchronisiert...");
 
   // Warte auf erste Synchronisation
@@ -160,17 +167,28 @@ void setup() {
   setupWebserver();
 
   Serial.println("Setup fertig!");
+  logEvent("Setup fertig");
 }
 
 void loop() {
   handleOTA();
   handleWebserver();
 
-  if (isMotionDetected() && shouldReactToMotion()) {
+  static bool lastMotionState = false;
+  bool motionDetected = isMotionDetected();
+  bool reactToMotion = shouldReactToMotion();
+
+  if (motionDetected && !lastMotionState) {
+    logEvent(reactToMotion ? "Bewegung erkannt (aktiv)" : "Bewegung erkannt (ignoriert)");
+  }
+  lastMotionState = motionDetected;
+
+  if (motionDetected && reactToMotion) {
     lastMotionTime = millis();
 
     if (!isLightOn()) {
       startFadeIn();
+      logEvent("Licht an (Fade In)");
     }
   }
 
@@ -178,6 +196,7 @@ void loop() {
 
   if (isLightOn() && (millis() - lastMotionTime > TIMEOUT)) {
     startFadeOut();
+    logEvent("Timeout erreicht, Licht aus (Fade Out)");
   }
 
   delay(50);
