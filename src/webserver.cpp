@@ -1,4 +1,4 @@
-#include "webserver.h"
+#include "mywebserver.h"
 #include "leds.h"
 #include <Arduino.h>
 #include <WiFi.h>
@@ -29,7 +29,7 @@ void updateError(const String& error) {
 
 // HTML + CSS + JS als String
 String getHTML() {
-  String html = R"(
+  String html = R"rawliteral(
     <!DOCTYPE html>
     <html lang="de">
     <head>
@@ -387,7 +387,7 @@ String getHTML() {
       </script>
     </body>
     </html>
-  )";
+  )rawliteral";
   return html;
 }
 
