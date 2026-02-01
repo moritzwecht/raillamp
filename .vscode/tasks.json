@@ -1,0 +1,19 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Upload All (USB)",
+            "type": "shell",
+            "command": "pio run -e esp32dev_usb -t upload -t uploadfs",
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Upload All (OTA)",
+            "type": "shell",
+            "command": "pio run -e esp32dev_ota -t upload -t uploadfs",
+            "group": "build",
+            "problemMatcher": []
+        }
+    ]
+}
