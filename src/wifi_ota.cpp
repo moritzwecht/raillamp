@@ -4,6 +4,7 @@
 #include <ESPmDNS.h>
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
+#include "log.h"
 
 // WiFi Zugangsdaten
 const char* ssid = "ArmbrustWG";
@@ -15,28 +16,30 @@ void setupWiFi() {
   IPAddress ip(192, 168, 0, 216);
   IPAddress gateway(192, 168, 0, 1);
   IPAddress subnet(255, 255, 255, 0);
+  IPAddress dns1(192, 168, 0, 1);
+  IPAddress dns2(1, 1, 1, 1);
   
-  if (!WiFi.config(ip, gateway, subnet)) {
-    Serial.println("Fehler bei statischer IP!");
+  if (!WiFi.config(ip, gateway, subnet, dns1, dns2)) {
+    LOG_PRINTLN("Fehler bei statischer IP!");
   }
   
   WiFi.begin(ssid, password);
-  Serial.print("Verbinde mit WiFi");
+  LOG_PRINT("Verbinde mit WiFi");
   
   int attempts = 0;
   while (WiFi.status() != WL_CONNECTED && attempts < 20) {
     delay(500);
-    Serial.print(".");
+    LOG_PRINT(".");
     attempts++;
   }
   
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.println();
-    Serial.print("WiFi verbunden! IP: ");
-    Serial.println(WiFi.localIP());
+    LOG_PRINTLN("");
+    LOG_PRINT("WiFi verbunden! IP: ");
+    LOG_PRINTLN(WiFi.localIP().toString());
   } else {
-    Serial.println();
-    Serial.println("WiFi fehlgeschlagen!");
+    LOG_PRINTLN("");
+    LOG_PRINTLN("WiFi fehlgeschlagen!");
   }
 }
 
@@ -46,28 +49,28 @@ void setupOTA() {
   ArduinoOTA.setHostname("nightlight");
   
   ArduinoOTA.onStart([]() {
-    Serial.println("OTA Update startet...");
+    LOG_PRINTLN("OTA Update startet...");
   });
   
   ArduinoOTA.onEnd([]() {
-    Serial.println("\nOTA Update fertig!");
+    LOG_PRINTLN("\nOTA Update fertig!");
   });
   
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+    LOG_PRINTF("Progress: %u%%\r", (progress / (total / 100)));
   });
   
   ArduinoOTA.onError([](ota_error_t error) {
-    Serial.printf("OTA Error[%u]: ", error);
-    if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
-    else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
-    else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
-    else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
-    else if (error == OTA_END_ERROR) Serial.println("End Failed");
+    LOG_PRINTF("OTA Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR) LOG_PRINTLN("Auth Failed");
+    else if (error == OTA_BEGIN_ERROR) LOG_PRINTLN("Begin Failed");
+    else if (error == OTA_CONNECT_ERROR) LOG_PRINTLN("Connect Failed");
+    else if (error == OTA_RECEIVE_ERROR) LOG_PRINTLN("Receive Failed");
+    else if (error == OTA_END_ERROR) LOG_PRINTLN("End Failed");
   });
   
   ArduinoOTA.begin();
-  Serial.println("OTA bereit!");
+  LOG_PRINTLN("OTA bereit!");
 }
 
 void handleOTA() {

@@ -1,10 +1,11 @@
 #include "leds.h"
 #include <Arduino.h>
+#include "log.h"
 
 #define LED_PIN 5
 #define NUM_LEDS 20
 
-int MAX_BRIGHTNESS = 30;
+static const int MAX_BRIGHTNESS = 255;
 #define FADE_SPEED 5
 
 CRGB leds[NUM_LEDS];
@@ -20,33 +21,28 @@ void setupLEDs() {
   FastLED.setBrightness(0);
   fill_solid(leds, NUM_LEDS, CRGB::Black);
   FastLED.show();
-  Serial.println("LEDs initialisiert!");
+  LOG_PRINTLN("LEDs initialisiert!");
 }
 
 void startFadeIn() {
   lightsOn = true;
   shouldFadeIn = true;
   shouldFadeOut = false;
-  Serial.println("Fade-In startet...");
+  LOG_PRINTLN("Fade-In startet...");
 }
 
 void startFadeOut() {
   shouldFadeOut = true;
-  Serial.println("Fade-Out startet...");
+  LOG_PRINTLN("Fade-Out startet...");
 }
 
 bool isLightOn() {
   return lightsOn;
 }
 
-void setMaxBrightness(int brightness) {
-  MAX_BRIGHTNESS = brightness;
-  if (lightsOn) {
-    FastLED.setBrightness(MAX_BRIGHTNESS);
-    FastLED.show();
-  }
+int getCurrentBrightness() {
+  return currentBrightness;
 }
-
 
 void updateFade() {
   if (shouldFadeIn) {
@@ -54,7 +50,7 @@ void updateFade() {
     if (currentBrightness >= MAX_BRIGHTNESS) {
       currentBrightness = MAX_BRIGHTNESS;
       shouldFadeIn = false;
-      Serial.println("Fade-In fertig");
+      LOG_PRINTLN("Fade-In fertig");
     }
     FastLED.setBrightness(currentBrightness);
     fill_solid(leds, NUM_LEDS, targetColor);
@@ -68,7 +64,7 @@ void updateFade() {
       currentBrightness = 0;
       shouldFadeOut = false;
       lightsOn = false;
-      Serial.println("Fade-Out fertig");
+      LOG_PRINTLN("Fade-Out fertig");
     }
     FastLED.setBrightness(currentBrightness);
     fill_solid(leds, NUM_LEDS, targetColor);
