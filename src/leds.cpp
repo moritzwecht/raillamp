@@ -1,6 +1,7 @@
 #include "leds.h"
 #include <Arduino.h>
 #include "log.h"
+#include "pir.h"
 
 #define LED_PIN 5
 #define NUM_LEDS 20
@@ -22,9 +23,11 @@ void setupLEDs() {
   fill_solid(leds, NUM_LEDS, CRGB::Black);
   FastLED.show();
   LOG_PRINTLN("LEDs initialisiert!");
+  logEvent("leds_init", lightsOn, currentBrightness, getMotionState(), nullptr);
 }
 
 void startFadeIn() {
+  if (shouldFadeIn) return;
   lightsOn = true;
   shouldFadeIn = true;
   shouldFadeOut = false;
@@ -32,6 +35,7 @@ void startFadeIn() {
 }
 
 void startFadeOut() {
+  if (shouldFadeOut || !lightsOn) return;
   shouldFadeOut = true;
   LOG_PRINTLN("Fade-Out startet...");
 }
@@ -44,6 +48,10 @@ int getCurrentBrightness() {
   return currentBrightness;
 }
 
+bool isFadeActive() {
+  return shouldFadeIn || shouldFadeOut;
+}
+
 void updateFade() {
   if (shouldFadeIn) {
     currentBrightness += FADE_SPEED;
@@ -51,6 +59,7 @@ void updateFade() {
       currentBrightness = MAX_BRIGHTNESS;
       shouldFadeIn = false;
       LOG_PRINTLN("Fade-In fertig");
+      logEvent("light_on", lightsOn, currentBrightness, getMotionState(), "fade_in_complete");
     }
     FastLED.setBrightness(currentBrightness);
     fill_solid(leds, NUM_LEDS, targetColor);
@@ -65,6 +74,7 @@ void updateFade() {
       shouldFadeOut = false;
       lightsOn = false;
       LOG_PRINTLN("Fade-Out fertig");
+      logEvent("light_off", lightsOn, currentBrightness, getMotionState(), "fade_out_complete");
     }
     FastLED.setBrightness(currentBrightness);
     fill_solid(leds, NUM_LEDS, targetColor);

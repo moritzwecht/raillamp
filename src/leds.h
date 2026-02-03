@@ -7,3 +7,4 @@ void startFadeOut();
 void updateFade();
 bool isLightOn();
 int getCurrentBrightness();
+bool isFadeActive();

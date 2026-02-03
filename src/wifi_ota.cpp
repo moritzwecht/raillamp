@@ -5,6 +5,8 @@
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 #include "log.h"
+#include "leds.h"
+#include "pir.h"
 
 // WiFi Zugangsdaten
 const char* ssid = "ArmbrustWG";
@@ -37,9 +39,11 @@ void setupWiFi() {
     LOG_PRINTLN("");
     LOG_PRINT("WiFi verbunden! IP: ");
     LOG_PRINTLN(WiFi.localIP().toString());
+    logEvent("wifi_connect_ok", false, 0, false, WiFi.localIP().toString());
   } else {
     LOG_PRINTLN("");
     LOG_PRINTLN("WiFi fehlgeschlagen!");
+    logEvent("wifi_connect_fail", false, 0, false, nullptr);
   }
 }
 
@@ -50,10 +54,12 @@ void setupOTA() {
   
   ArduinoOTA.onStart([]() {
     LOG_PRINTLN("OTA Update startet...");
+    logEvent("ota_start", isLightOn(), getCurrentBrightness(), getMotionState(), nullptr);
   });
   
   ArduinoOTA.onEnd([]() {
     LOG_PRINTLN("\nOTA Update fertig!");
+    logEvent("ota_end", isLightOn(), getCurrentBrightness(), getMotionState(), nullptr);
   });
   
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
@@ -67,6 +73,7 @@ void setupOTA() {
     else if (error == OTA_CONNECT_ERROR) LOG_PRINTLN("Connect Failed");
     else if (error == OTA_RECEIVE_ERROR) LOG_PRINTLN("Receive Failed");
     else if (error == OTA_END_ERROR) LOG_PRINTLN("End Failed");
+    logEvent("ota_error", isLightOn(), getCurrentBrightness(), getMotionState(), String("code=") + String(error));
   });
   
   ArduinoOTA.begin();
