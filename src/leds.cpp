@@ -6,11 +6,14 @@
 #define LED_PIN 5
 #define NUM_LEDS 20
 
-static const int MAX_BRIGHTNESS = 255;
+// static const int MAX_BRIGHTNESS = 255;
+static const int MAX_BRIGHTNESS = 150;
 #define FADE_SPEED 5
 
 CRGB leds[NUM_LEDS];
-CRGB targetColor = CRGB(255, 255, 255);
+// CRGB targetColor = CRGB(255, 255, 255);
+CRGB targetColor = CRGB(255, 140, 60); // Warmweiß
+// CRGB targetColor = CRGB(255, 0, 0); // Rot
 
 bool lightsOn = false;
 bool shouldFadeIn = false;
