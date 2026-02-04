@@ -4,6 +4,7 @@
 #include "pir.h"
 #include "mqtt_client.h"
 #include "log.h"
+#include "schedule.h"
 #include <WiFi.h>
 #include <esp_system.h>
 
@@ -21,6 +22,7 @@ void setup() {
   setupMQTT();
   setupPIR();
   setupLEDs();
+  setupSchedule();
 
   const char* resetReason = "unknown";
   esp_reset_reason_t reason = esp_reset_reason();
@@ -46,6 +48,7 @@ void loop() {
   handleOTA();
   handleMQTT();
   handleLog();
+  handleSchedule();
 
   static bool lastWiFiConnected = false;
   bool wifiConnected = (WiFi.status() == WL_CONNECTED);
@@ -60,7 +63,10 @@ void loop() {
   }
 
   static bool lastMotionState = false;
-  bool motionDetected = isMotionDetected();
+  static ScheduleState lastScheduleState = ScheduleState::Unknown;
+  ScheduleState scheduleState = getScheduleState();
+  bool allowMotion = (scheduleState != ScheduleState::Blocked);
+  bool motionDetected = allowMotion ? isMotionDetected() : false;
 
   if (motionDetected != lastMotionState) {
     logEvent(motionDetected ? "motion_on" : "motion_off",
@@ -71,17 +77,24 @@ void loop() {
     lastMotionState = motionDetected;
   }
 
-  if (motionDetected) {
+  if (scheduleState == ScheduleState::Blocked) {
+    if (scheduleState != lastScheduleState && isLightOn()) {
+      startFadeOut();
+      logEvent("auto_off", isLightOn(), getCurrentBrightness(), motionDetected, "schedule_blocked");
+    }
+  } else if (motionDetected) {
     lastMotionTime = millis();
 
     if (!isLightOn()) {
       startFadeIn();
+      logEvent("auto_on", true, getCurrentBrightness(), motionDetected, "motion");
     }
   }
+  lastScheduleState = scheduleState;
 
   updateFade();
 
-  if (isLightOn() && (millis() - lastMotionTime > kMotionTimeoutMs)) {
+  if (isLightOn() && allowMotion && (millis() - lastMotionTime > kMotionTimeoutMs)) {
     startFadeOut();
   }
 
